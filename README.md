@@ -1,4 +1,4 @@
-# Dota 2 Match Outcome Predictor 🎮🤖
+# Dota 2 Match Predictor 🎮🤖
 
 Веб-сервис и Deep Learning модель для прогнозирования победы команды Radiant или Dire по ранней динамике первых 5 ключевых тимфайтов.
 
