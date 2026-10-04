@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Прогноз исхода матча Dota 2</title>
+    <style>
+        :root {
+            --primary: #4a6fa5;
+            --primary-dark: #3a5a8c;
+            --secondary: #d9534f;
+            --success: #5cb85c;
+            --light: #f8f9fa;
+            --dark: #343a40;
+            --border: #dee2e6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            overscroll-behavior: none;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .metrics-container {
+            padding: 25px;
+        }
+
+        .metric-section {
+            margin-bottom: 35px;
+            padding: 20px;
+            background: var(--light);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .metric-header {
+            margin-bottom: 20px;
+            font-size: 1.4em;
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        .metric-description {
+            color: #666;
+            font-size: 0.95em;
+            margin-bottom: 20px;
+        }
+
+        .samples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 25px;
+            margin-top: 15px;
+        }
+
+        .sample-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .sample-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .sample-label {
+            font-size: 0.9em;
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .sample-label i {
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .vertical-slider-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            height: 200px;
+            position: relative;
+        }
+
+        .slider-label {
+            font-size: 0.7em;
+            color: #666;
+            text-align: center;
+        }
+
+        .vertical-slider {
+            writing-mode: vertical-lr;
+            direction: rtl;
+            width: 8px;
+            height: 180px;
+            background: var(--border);
+            border-radius: 4px;
+            outline: none;
+            position: relative;
+            z-index: 1;
+            margin: 4px 0;
+        }
+
+        .number-input {
+            width: 100%;
+            max-width: 100px;
+            padding: 10px;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            font-size: 1em;
+            text-align: center;
+            transition: border-color 0.3s;
+            margin-top: 15px;
+            appearance: textfield;
+        }
+
+        .number-input::-webkit-outer-spin-button,
+        .number-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .number-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .prediction-section {
+            padding: 25px;
+            background: var(--light);
+            border-top: 1px solid var(--border);
+        }
+
+        .prediction-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .prediction-header {
+            font-size: 1.3em;
+            color: var(--primary-dark);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .prediction-result {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .radiant-win {
+            background: linear-gradient(135deg, rgba(92, 184, 92, 0.15) 0%, rgba(92, 184, 92, 0.05) 100%);
+            color: var(--success);
+            border: 2px solid var(--success);
+        }
+
+        .dire-win {
+            background: linear-gradient(135deg, rgba(217, 83, 79, 0.15) 0%, rgba(217, 83, 79, 0.05) 100%);
+            color: var(--secondary);
+            border: 2px solid var(--secondary);
+        }
+
+        .confidence-meter {
+            margin: 25px 0;
+        }
+
+        .confidence-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .confidence-bar {
+            height: 12px;
+            background: var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--secondary) 0%, #f0ad4e 50%, var(--success) 100%);
+            border-radius: 6px;
+            transition: width 0.5s ease;
+        }
+
+        .prediction-details {
+            font-size: 0.95em;
+            color: #666;
+            margin-top: 15px;
+            line-height: 1.5;
+        }
+
+        .prediction-confidence {
+            font-size: 0.5em;
+            margin-top: 10px;
+            opacity: 0.8;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 111, 165, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--light);
+            transform: translateY(-2px);
+        }
+
+        .btn-icon {
+            font-size: 1.2em;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9em;
+            border-top: 1px solid var(--border);
+            background: var(--light);
+        }
+
+        @media (max-width: 768px) {
+            .samples-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 15px;
+            }
+
+            .sample-card {
+                padding: 10px;
+            }
+
+            .vertical-slider {
+                height: 160px;
+            }
+
+            .button-container {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .metric-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .samples-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Прогноз исхода матча Dota 2</h1>
+            <div class="subtitle">Прогноз на основе ИИ с использованием 3 игровых метрик на 5 временных интервалах</div>
+        </header>
+
+        <div class="metrics-container">
+            <div class="metric-section">
+                <div class="metric-header">
+                    <i class="fas fa-coins"></i> Преимущество по золоту
+                </div>
+                <p class="metric-description">
+                    Разница в общем золоте между Radiant и Dire.
+                </p>
+                <div class="samples-grid" id="gold-adv-container">
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-coins"></i>
+                            <div>Первый</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">10k</div>
+                                <input type="range" class="vertical-slider" id="v1" min="-10000" max="10000" value="0"
+                                    step="100">
+                                <div class="slider-label">-10k</div>
+                            </div>
+                            <input type="number" class="number-input" id="n1" min="-10000" max="10000" value="0"
+                                step="100">
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-coins"></i>
+                            <div>Второй</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">10k</div>
+                                <input type="range" class="vertical-slider" id="v2" min="-10000" max="10000" value="0"
+                                    step="100">
+                                <div class="slider-label">-10k</div>
+                            </div>
+                            <input type="number" class="number-input" id="n2" min="-10000" max="10000" value="0"
+                                step="100">
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-coins"></i>
+                            <div>Третий</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">10k</div>
+                                <input type="range" class="vertical-slider" id="v3" min="-10000" max="10000" value="0"
+                                    step="100">
+                                <div class="slider-label">-10k</div>
+                            </div>
+                            <input type="number" class="number-input" id="n3" min="-10000" max="10000" value="0"
+                                step="100">
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-coins"></i>
+                            <div>Четвёртый</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">10k</div>
+                                <input type="range" class="vertical-slider" id="v4" min="-10000" max="10000" value="0"
+                                    step="100">
+                                <div class="slider-label">-10k</div>
+                            </div>
+                            <input type="number" class="number-input" id="n4" min="-10000" max="10000" value="0"
+                                step="100">
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-coins"></i>
+                            <div>Пятый</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">10k</div>
+                                <input type="range" class="vertical-slider" id="v5" min="-10000" max="10000" value="0"
+                                    step="100">
+                                <div class="slider-label">-10k</div>
+                            </div>
+                            <input type="number" class="number-input" id="n5" min="-10000" max="10000" value="0"
+                                step="100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-section">
+                <div class="metric-header">
+                    <div class="metric-title">
+                        <i class="fas fa-chart-line"></i> Преимущество по опыту
+                    </div>
+                </div>
+                <p class="metric-description">
+                    Разница в опыте между Radiant и Dire.
+                </p>
+                <div class="samples-grid" id="exp-adv-container">
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-chart-line"></i>
+                            <div>Первый</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">20k</div>
+                                <input type="range" class="vertical-slider" id="v6" min="-20000" max="20000" step="100">
+                            </div>
+                            <div class="slider-label">-20k</div>
+                            <input type="number" class="number-input" id="n6" min="-20000" max="20000" value="0"
+                                step="100">
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-chart-line"></i>
+                            <div>Второй</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">20k</div>
+                                <input type="range" class="vertical-slider" id="v7" min="-20000" max="20000" value="0"
+                                    step="100">
+                                <div class="slider-label">-20k</div>
+                            </div>
+                            <input type="number" class="number-input" id="n7" min="-20000" max="20000" value="0"
+                                step="100">
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-chart-line"></i>
+                            <div>Третий</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">20k</div>
+                                <input type="range" class="vertical-slider" id="v8" min="-20000" max="20000" value="0"
+                                    step="100">
+                                <div class="slider-label">-20k</div>
+                            </div>
+                            <input type="number" class="number-input" id="n8" min="-20000" max="20000" value="0"
+                                step="100">
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-chart-line"></i>
+                            <div>Четвёртый</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">20k</div>
+                                <input type="range" class="vertical-slider" id="v9" min="-20000" max="20000" value="0"
+                                    step="100">
+                                <div class="slider-label">-20k</div>
+                            </div>
+                            <input type="number" class="number-input" id="n9" min="-20000" max="20000" value="0"
+                                step="100">
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-chart-line"></i>
+                            <div>Пятый</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">20k</div>
+                                <input type="range" class="vertical-slider" id="v10" min="-20000" max="20000" value="0"
+                                    step="100">
+                                <div class="slider-label">-20k</div>
+                            </div>
+                            <input type="number" class="number-input" id="n10" min="-20000" max="20000" value="0"
+                                step="100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-section">
+                <div class="metric-header">
+                    <div class="metric-title">
+                        <i class="fas fa-skull-crossbones"></i> Преимущество по убийствам
+                    </div>
+                </div>
+                <p class="metric-description">
+                    Разница в количестве убийств между Radiant и Dire.
+                </p>
+                <div class="samples-grid" id="kills-adv-container">
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-skull-crossbones"></i>
+                            <div>Первый</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">10</div>
+                                <input type="range" class="vertical-slider" id="v11" min="-10" max="10" value="0"
+                                    step="1">
+                                <div class="slider-label">-10</div>
+                            </div>
+                            <input type="number" class="number-input" id="n11" min="-10" max="10" value="0" step="1">
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-skull-crossbones"></i>
+                            <div>Второй</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">10</div>
+                                <input type="range" class="vertical-slider" id="v12" min="-10" max="10" value="0"
+                                    step="1">
+                                <div class="slider-label">-10</div>
+                            </div>
+                            <input type="number" class="number-input" id="n12" min="-10" max="10" value="0" step="1">
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-skull-crossbones"></i>
+                            <div>Третий</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">10</div>
+                                <input type="range" class="vertical-slider" id="v13" min="-10" max="10" value="0"
+                                    step="1">
+                                <div class="slider-label">-10</div>
+                            </div>
+                            <input type="number" class="number-input" id="n13" min="-10" max="10" value="0" step="1">
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-skull-crossbones"></i>
+                            <div>Четвёртый</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">10</div>
+                                <input type="range" class="vertical-slider" id="v14" min="-10" max="10" value="0"
+                                    step="1">
+                                <div class="slider-label">-10</div>
+                            </div>
+                            <input type="number" class="number-input" id="n14" min="-10" max="10" value="0" step="1">
+                        </div>
+                    </div>
+                    <div class="sample-card">
+                        <div class="sample-label">
+                            <i class="fas fa-skull-crossbones"></i>
+                            <div>Пятый</div>
+                        </div>
+                        <div class="input-container">
+                            <div class="vertical-slider-container">
+                                <div class="slider-label">10</div>
+                                <input type="range" class="vertical-slider" id="v15" min="-10" max="10" value="0"
+                                    step="1">
+                                <div class="slider-label">-10</div>
+                            </div>
+                            <input type="number" class="number-input" id="n15" min="-10" max="10" value="0" step="1">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="prediction-section">
+            <div class="prediction-card">
+                <div class="prediction-header">
+                    <i class="fas fa-robot"></i> Прогноз матча
+                </div>
+
+                <div class="prediction-result" id="predictionResult">
+                    Введите значения и нажмите «Предсказать»
+                </div>
+
+                <div class="confidence-meter">
+                    <div class="confidence-label">
+                        <span>Низкая уверенность</span>
+                        <span>Высокая уверенность</span>
+                    </div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidenceFill" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <p class="prediction-details" id="predictionDetails">
+                    Эта модель ИИ анализирует 3 игровые метрики с интервалом в 5 минут для прогнозирования исхода матча.
+                </p>
+
+                <div class="button-container">
+                    <button class="btn btn-primary" onclick="getPrediction()">
+                        <i class="fas fa-bolt btn-icon"></i> Предсказать исход матча
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetAll()">
+                        <i class="fas fa-redo btn-icon"></i> Сбросить все значения
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadTestData()">
+                        <i class="fas fa-vial btn-icon"></i> Загрузить тестовые данные
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Проект по ИИ — модель прогнозирования матчей Dota 2</p>
+            <p>Модель использует преимущество по золоту, опыту и убийствам на 5 временных интервалах</p>
+            <p>Команда: Глущенко Вячеслав Олегович, Кабаков Григорий Сергеевич, Кныш Радион Николаевич</p>
+        </footer>
+    </div>
+
+    <script>
+        for (let i = 1; i <= 15; i++) {
+            const slider = document.getElementById(`v${i}`);
+            const number = document.getElementById(`n${i}`);
+
+            slider.addEventListener('input', () => {
+                number.value = slider.value;
+            });
+
+            number.addEventListener('input', () => {
+                if (number.value === '') return;
+                const min = parseInt(number.min);
+                const max = parseInt(number.max);
+                let val = parseInt(number.value);
+
+                slider.value = val;
+                number.value = val;
+            });
+        };
+
+        function getPrediction() {
+            predictionResult.className = 'prediction-result';
+            predictionResult.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Анализ данных...';
+            predictionDetails.textContent = 'Обработка игровых данных...';
+
+            const values = [];
+            for (let i = 1; i <= 15; i++) {
+                values.push(document.getElementById(`n${i}`).value);
+            }
+
+            fetch(`/predict?values=${values.join(",")}`)
+                .then(r => r.json())
+                .then(data => {
+                    displayPrediction(data);
+                })
+                .catch(error => {
+                    predictionResult.className = 'prediction-result';
+                    predictionResult.textContent = 'Ошибка';
+                    predictionDetails.textContent = 'Не удалось получить прогноз. Пожалуйста, попробуйте снова.';
+                    confidenceFill.style.width = '0%';
+                    console.error('Prediction error:', error);
+                });
+        }
+
+        function displayPrediction(data) {
+            const isRadiantWin = parseFloat(data.prediction) > 0.5;
+            const confidence = isRadiantWin ?
+                Math.round((data.prediction - 0.5) * 200) :
+                Math.round((0.5 - data.prediction) * 200);
+
+            if (isRadiantWin) {
+                predictionResult.className = 'prediction-result radiant-win';
+                predictionResult.innerHTML = `
+                    <i class="fas fa-crown"></i> ПОБЕДА RADIANT
+                    <div class="prediction-confidence">
+                        ${confidence}% Уверенность
+                    </div>
+                `;
+                predictionDetails.textContent =
+                    `По текущим метрикам Radiant, вероятнее всего, победит с уверенностью ${confidence}%.`;
+            } else {
+                predictionResult.className = 'prediction-result dire-win';
+                predictionResult.innerHTML = `
+                    <i class="fas fa-skull"></i> ПОБЕДА DIRE
+                    <div class="prediction-confidence">
+                        ${confidence}% Уверенность
+                    </div>
+                `;
+                predictionDetails.textContent =
+                    `По текущим метрикам Dire, вероятнее всего, победит с уверенностью ${confidence}%.`;
+            }
+
+            confidenceFill.style.width = `${confidence}%`;
+        }
+
+        function resetAll() {
+            for (let i = 1; i <= 15; i++) {
+                const slider = document.getElementById(`v${i}`);
+                const numberInput = document.getElementById(`n${i}`);
+                slider.value = 0;
+                numberInput.value = 0;
+            }
+
+            predictionResult.className = 'prediction-result';
+            predictionResult.textContent = 'Введите значения и нажмите «Предсказать»';
+            predictionDetails.textContent = 'Эта модель ИИ анализирует 3 игровые метрики с интервалом в 5 минут для прогнозирования исхода матча.';
+            confidenceFill.style.width = '0%';
+        }
+
+        function loadTestData() {
+            const testData = [
+                -3000, -2000, -1000, 1500, 4000,
+                -4000, -2500, -1000, 2000, 6000,
+                -3, -2, 0, 1, 2
+            ];
+
+            for (let i = 1; i <= 15; i++) {
+                const slider = document.getElementById(`v${i}`);
+                const numberInput = document.getElementById(`n${i}`);
+
+                if (slider && numberInput) {
+                    slider.value = testData[i - 1];
+                    numberInput.value = testData[i - 1];
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
